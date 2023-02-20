@@ -1,0 +1,63 @@
+---
+- hosts: localhost
+  remote_user: root
+  vars:
+    docker_container__base__dns_domain: "acme.org"
+    docker_container_reposilite_mailer_host: "mail.{{ docker_container__base__dns_domain }}"
+    docker_container_reposilite_mailer_from: "no-reply@{{ docker_container__base__dns_domain }}"
+    docker_container_reposilite_mailer_username: "no-reply@{{ docker_container__base__dns_domain }}"
+    docker_container_reposilite_mailer_password: "somepassword"
+
+    docker_network_traefik_name: "traefik_proxy_net"
+
+    docker_container_reposilite_server_domain: "{{ docker_container_reposilite_name }}.{{ docker_container__base__dns_domain }}"
+    
+    docker_container_reposilite_env:
+      APP_NAME: "reposilite: git"
+      RUN_USER: "git"
+      reposilite__log__ROOT_PATH: "/data/reposilite/log"
+      reposilite__repository__ROOT: "/data/git/repositories"
+      reposilite__server__DOMAIN: "{{ docker_container_reposilite_server_domain }}"
+      reposilite__server__ROOT_URL: "https://{{ docker_container_reposilite_server_domain }}"
+      reposilite__server__HTTP_PORT: "3000"
+      reposilite__service__DISABLE_REGISTRATION: "true"
+      reposilite__mailer__ENABLED: "true"
+      reposilite__mailer__FROM: "{{ docker_container_reposilite_mailer_from }}"
+      reposilite__mailer__MAILER_TYPE: "smtp"
+      reposilite__mailer__HOST: "{{ docker_container_reposilite_mailer_host }}"
+      reposilite__mailer__IS_TLS: "true"
+      reposilite__mailer__USER: "{{ docker_container_reposilite_mailer_username }}"
+      reposilite__mailer__PASSWD: "{{ docker_container_reposilite_mailer_password }}"
+      reposilite__database__DB_TYPE: "sqlite3"
+      reposilite__database__PATH: "/data/reposilite/reposilite.db"
+      reposilite__webhook__SKIP_TLS_VERIFY: "true"
+      reposilite__webhook__ALLOWED_HOST_LIST: "*"
+
+    docker_container_reposilite_labels:
+      traefik.enable: "true"
+      traefik.http.routers.reposilite.rule: "Host(`{{ docker_container_reposilite_server_domain }}`)"
+      traefik.http.routers.reposilite.entrypoints: http
+      traefik.http.routers.reposilite.service: reposilite
+      #traefik.http.routers.reposilite.middlewares: https_redirect_permanent@file
+      # HTTPS
+      traefik.http.routers.reposilite_ssl.rule: "Host(`{{ docker_container_reposilite_server_domain }}`)"
+      traefik.http.routers.reposilite_ssl.entrypoints: https
+      traefik.http.routers.reposilite_ssl.service: reposilite
+      #traefik.http.routers.reposilite_ssl.tls: "true"
+      # traefik.http.routers.reposilite_ssl.tls.certResolver: le
+      traefik.http.routers.reposilite_ssl.tls.options: nosni@file
+      # traefik.http.routers.reposilite_ssl.middlewares: "hsts@file"
+      # Service
+      traefik.http.services.reposilite.loadbalancer.server.port: "3000"
+
+    docker_container_reposilite_volumes:
+      - "{{ docker_container_reposilite_volume_dir }}/data:/data"
+      - "/etc/timezone:/etc/timezone:ro"
+      - "/etc/localtime:/etc/localtime:ro"
+
+    docker_container_reposilite_networks:
+      - name: "{{ docker_network_reposilite_name }}"
+      - name: "{{ docker_network_traefik_name }}"
+
+  roles:
+    - ansible-role-docker-container-reposilite
